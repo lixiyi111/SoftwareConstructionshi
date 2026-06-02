@@ -9,6 +9,7 @@ import { ReminderPolicy } from './ReminderPolicy';
 export class Task {
   constructor(
     public readonly taskId: string,
+    public userId: string,
     public title: string,
     public description: string,
     public priority: Priority,
