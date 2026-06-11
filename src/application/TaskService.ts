@@ -23,4 +23,12 @@ export interface TaskService {
     total: number;
     completed: number;
   };
+
+  recordStudyTime(taskId: string, minutes: number): Task;
+
+  getStudyStatistics(userId: string): {
+    totalMinutes: number;
+    completedTaskMinutes: number;
+    averageMinutesPerTask: number;
+  };
 }

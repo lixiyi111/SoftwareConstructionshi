@@ -1,10 +1,22 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, beforeAll, afterAll, vi } from 'vitest';
 import { Task } from '../src/domain/Task';
 import { TaskStatus } from '../src/domain/TaskStatus';
 import { Priority } from '../src/domain/Priority';
 import { DefaultTaskService } from '../src/application/DefaultTaskService';
 import { InMemoryTaskRepository } from '../src/infrastructure/TaskRepository';
 import type { CreateTaskCommand } from '../src/application/TaskService';
+
+// ============================================================
+// 冻结系统时间，消除所有测试的时间依赖
+// ============================================================
+beforeAll(() => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date('2026-01-01'));
+});
+
+afterAll(() => {
+  vi.useRealTimers();
+});
 
 // ==============================================================
 // Task 实体基础测试
@@ -93,7 +105,7 @@ describe('DefaultTaskService — 5 个核心功能', () => {
     it('应按 高→中→低 顺序返回任务', () => {
       const u = 'sort-user';
       service.createTask({ userId: u, title: '低优先级', priority: 'LOW' });
-      service.createTask({ userId: u, title: '高优先级', priority: 'HIGH', dueDate: new Date('2026-06-10') });
+      service.createTask({ userId: u, title: '高优先级', priority: 'HIGH', dueDate: new Date('2026-07-01') });
       service.createTask({ userId: u, title: '中优先级', priority: 'MEDIUM' });
       const sorted = service.listTasksByPriority(u);
       expect(sorted[0].priority).toBe(Priority.High);
@@ -106,9 +118,9 @@ describe('DefaultTaskService — 5 个核心功能', () => {
   describe('&查询到期任务', () => {
     it('应返回截止日期在指定日期之前的任务', () => {
       const u = 'due-user';
-      service.createTask({ userId: u, title: '已到期', priority: 'HIGH', dueDate: new Date('2026-06-08') });
-      service.createTask({ userId: u, title: '未到期', priority: 'LOW', dueDate: new Date('2026-07-01') });
-      const due = service.listDueTasks(new Date('2026-06-10'));
+      service.createTask({ userId: u, title: '已到期', priority: 'HIGH', dueDate: new Date('2026-07-08') });
+      service.createTask({ userId: u, title: '未到期', priority: 'LOW', dueDate: new Date('2026-07-12') });
+      const due = service.listDueTasks(new Date('2026-07-10'));
       expect(due.some((t) => t.title === '已到期')).toBe(true);
       expect(due.some((t) => t.title === '未到期')).toBe(false);
     });

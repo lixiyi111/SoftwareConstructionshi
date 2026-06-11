@@ -8,13 +8,25 @@
  * 测试风格：Arrange → Act → Assert
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, beforeAll, afterAll, vi } from 'vitest';
 import { DefaultTaskService } from '../../src/application/DefaultTaskService';
 import { InMemoryTaskRepository } from '../../src/infrastructure/TaskRepository';
 import { TaskStatus } from '../../src/domain/TaskStatus';
 import { Priority } from '../../src/domain/Priority';
 import type { CreateTaskCommand } from '../../src/application/TaskService';
 import { Task } from '../../src/domain/Task';
+
+// ============================================================
+// 冻结系统时间，消除所有测试的时间依赖
+// ============================================================
+beforeAll(() => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date('2026-01-01'));
+});
+
+afterAll(() => {
+  vi.useRealTimers();
+});
 
 // ============================================================
 // 测试辅助：每次创建新的仓储实例，隔离测试数据
@@ -254,7 +266,7 @@ describe('listTasksByPriority', () => {
 
   function createThreeTasks(service: DefaultTaskService): void {
     service.createTask(cmd({ userId: USER, title: '低', priority: 'LOW' }));
-    service.createTask(cmd({ userId: USER, title: '高', priority: 'HIGH', dueDate: new Date('2026-06-10') }));
+    service.createTask(cmd({ userId: USER, title: '高', priority: 'HIGH', dueDate: new Date('2026-07-01') }));
     service.createTask(cmd({ userId: USER, title: '中', priority: 'MEDIUM' }));
   }
 
@@ -273,9 +285,9 @@ describe('listTasksByPriority', () => {
 
     it('TP019 同一优先级按入库顺序排列', () => {
       const { service } = createFixture();
-      service.createTask(cmd({ userId: USER, title: 'A', priority: 'HIGH', dueDate: new Date('2026-06-10') }));
-      service.createTask(cmd({ userId: USER, title: 'B', priority: 'HIGH', dueDate: new Date('2026-06-10') }));
-      service.createTask(cmd({ userId: USER, title: 'C', priority: 'HIGH', dueDate: new Date('2026-06-10') }));
+      service.createTask(cmd({ userId: USER, title: 'A', priority: 'HIGH', dueDate: new Date('2026-07-10') }));
+      service.createTask(cmd({ userId: USER, title: 'B', priority: 'HIGH', dueDate: new Date('2026-07-10') }));
+      service.createTask(cmd({ userId: USER, title: 'C', priority: 'HIGH', dueDate: new Date('2026-07-10') }));
 
       const result = service.listTasksByPriority(USER);
 
@@ -321,9 +333,9 @@ describe('listDueTasks', () => {
 
   /** 创建三个不同截止日期的任务 */
   function createMixedTasks(service: DefaultTaskService): void {
-    service.createTask(cmd({ userId: USER, title: '已到期6月1', priority: 'HIGH', dueDate: new Date('2026-06-08') }));
-    service.createTask(cmd({ userId: USER, title: '当日6月10', priority: 'MEDIUM', dueDate: new Date('2026-06-10') }));
-    service.createTask(cmd({ userId: USER, title: '未来6月15', priority: 'LOW', dueDate: new Date('2026-06-15') }));
+    service.createTask(cmd({ userId: USER, title: '已到期7月8', priority: 'HIGH', dueDate: new Date('2026-07-08') }));
+    service.createTask(cmd({ userId: USER, title: '当日7月10', priority: 'MEDIUM', dueDate: new Date('2026-07-10') }));
+    service.createTask(cmd({ userId: USER, title: '未来7月15', priority: 'LOW', dueDate: new Date('2026-07-15') }));
   }
 
   // ── 正常路径 ─────────────────────────────────────────
@@ -332,11 +344,11 @@ describe('listDueTasks', () => {
       const { service } = createFixture();
       createMixedTasks(service);
 
-      const due = service.listDueTasks(new Date('2026-06-10'));
+      const due = service.listDueTasks(new Date('2026-07-10'));
 
       expect(due).toHaveLength(2);
       expect(due.map((t) => t.title)).toEqual(
-        expect.arrayContaining(['已到期6月1', '当日6月10']),
+        expect.arrayContaining(['已到期7月8', '当日7月10']),
       );
     });
   });
@@ -361,7 +373,7 @@ describe('listDueTasks', () => {
 
     it('TP026 截止日期等于指定日期当天的任务应被包含', () => {
       const { service } = createFixture();
-      const today = new Date('2026-06-10');
+      const today = new Date('2026-07-10');
       service.createTask(cmd({ userId: USER, title: '刚好今天', priority: 'HIGH', dueDate: today }));
 
       const result = service.listDueTasks(today);
@@ -372,11 +384,11 @@ describe('listDueTasks', () => {
 
     it('TP027 多条任务同一天到期应全部返回', () => {
       const { service } = createFixture();
-      service.createTask(cmd({ userId: USER, title: '到期A', priority: 'HIGH', dueDate: new Date('2026-06-10') }));
-      service.createTask(cmd({ userId: USER, title: '到期B', priority: 'MEDIUM', dueDate: new Date('2026-06-10') }));
-      service.createTask(cmd({ userId: USER, title: '到期C', priority: 'LOW', dueDate: new Date('2026-06-10') }));
+      service.createTask(cmd({ userId: USER, title: '到期A', priority: 'HIGH', dueDate: new Date('2026-07-10') }));
+      service.createTask(cmd({ userId: USER, title: '到期B', priority: 'MEDIUM', dueDate: new Date('2026-07-10') }));
+      service.createTask(cmd({ userId: USER, title: '到期C', priority: 'LOW', dueDate: new Date('2026-07-10') }));
 
-      const result = service.listDueTasks(new Date('2026-06-10'));
+      const result = service.listDueTasks(new Date('2026-07-10'));
 
       expect(result).toHaveLength(3);
     });
@@ -392,10 +404,10 @@ describe('getUserProgress', () => {
 
   /** 创建 5 个任务：3 COMPLETED + 1 IN_PROGRESS + 1 PENDING */
   function createMixedProgress(service: DefaultTaskService): void {
-    const t1 = service.createTask(cmd({ userId: USER, title: '作业A', priority: 'HIGH', dueDate: new Date('2026-06-10') }));
+    const t1 = service.createTask(cmd({ userId: USER, title: '作业A', priority: 'HIGH', dueDate: new Date('2026-07-10') }));
     const t2 = service.createTask(cmd({ userId: USER, title: '作业B', priority: 'MEDIUM' }));
     const t3 = service.createTask(cmd({ userId: USER, title: '作业C', priority: 'LOW' }));
-    service.createTask(cmd({ userId: USER, title: '作业D', priority: 'HIGH', dueDate: new Date('2026-06-10') }));
+    service.createTask(cmd({ userId: USER, title: '作业D', priority: 'HIGH', dueDate: new Date('2026-07-10') }));
     service.createTask(cmd({ userId: USER, title: '作业E', priority: 'MEDIUM' }));
     // 完成 3 个
     for (const t of [t1, t2, t3]) {
@@ -426,7 +438,7 @@ describe('getUserProgress', () => {
 
     it('TP030 所有任务均为 COMPLETED', () => {
       const { service } = createFixture();
-      const t1 = service.createTask(cmd({ userId: USER, title: '完成1', priority: 'HIGH', dueDate: new Date('2026-06-10') }));
+      const t1 = service.createTask(cmd({ userId: USER, title: '完成1', priority: 'HIGH', dueDate: new Date('2026-07-10') }));
       const t2 = service.createTask(cmd({ userId: USER, title: '完成2', priority: 'LOW' }));
       for (const t of [t1, t2]) {
         service.updateTaskStatus(t.taskId, 'IN_PROGRESS');
@@ -463,6 +475,157 @@ describe('getUserProgress', () => {
       const stats = service.getUserProgress(USER);
 
       expect(stats.total).toBe(1);
+    });
+  });
+});
+
+// ============================================================
+// recordStudyTime — 5 个测试点
+// ============================================================
+describe('recordStudyTime', () => {
+  // ── 正常路径 ─────────────────────────────────────────
+  describe('正常路径', () => {
+    it('TP033 正常记录学习时长应累加到 actualMinutes', () => {
+      const { service } = createFixture();
+      const task = createPending(service);
+
+      const updated = service.recordStudyTime(task.taskId, 30);
+
+      expect(updated.actualMinutes).toBe(30);
+    });
+
+    it('TP034 多次记录学习时长应正确累加', () => {
+      const { service } = createFixture();
+      const task = createPending(service);
+
+      service.recordStudyTime(task.taskId, 30);
+      service.recordStudyTime(task.taskId, 20);
+      const updated = service.recordStudyTime(task.taskId, 15);
+
+      expect(updated.actualMinutes).toBe(65);
+    });
+  });
+
+  // ── 异常路径 ─────────────────────────────────────────
+  describe('异常路径', () => {
+    it('TP035 minutes 为 0 时应抛出异常', () => {
+      const { service } = createFixture();
+      const task = createPending(service);
+
+      expect(() => service.recordStudyTime(task.taskId, 0)).toThrow('学习时长必须为正数');
+      // actualMinutes 应保持不变（对象引用未变，addStudyTime 未被调用）
+      expect(task.actualMinutes).toBe(0);
+    });
+
+    it('TP036 minutes 为负数时应抛出异常', () => {
+      const { service } = createFixture();
+      const task = createPending(service);
+
+      expect(() => service.recordStudyTime(task.taskId, -10)).toThrow('学习时长必须为正数');
+      expect(task.actualMinutes).toBe(0);
+    });
+
+    it('TP037 不存在的 taskId 应抛出"任务不存在"', () => {
+      const { service } = createFixture();
+
+      expect(() => service.recordStudyTime('not-exist', 30)).toThrow(/任务不存在/);
+    });
+  });
+});
+
+// ============================================================
+// getStudyStatistics — 6 个测试点
+// ============================================================
+describe('getStudyStatistics', () => {
+  const USER = 'stat-user';
+  const OTHER = 'other-user';
+
+  // ── 边界条件 ─────────────────────────────────────────
+  describe('边界条件', () => {
+    it('TP038 无任务用户返回全 0', () => {
+      const { service } = createFixture();
+
+      const stats = service.getStudyStatistics('no-task-user');
+
+      expect(stats).toEqual({
+        totalMinutes: 0,
+        completedTaskMinutes: 0,
+        averageMinutesPerTask: 0,
+      });
+    });
+
+    it('TP042 学习时长为 0 的任务应正确统计', () => {
+      const { service } = createFixture();
+      // 创建任务但未记录学习时长（actualMinutes = 0）
+      service.createTask(cmd({ userId: USER, title: '零时长任务', priority: 'MEDIUM' }));
+
+      const stats = service.getStudyStatistics(USER);
+
+      expect(stats.totalMinutes).toBe(0);
+      expect(stats.completedTaskMinutes).toBe(0);
+      expect(stats.averageMinutesPerTask).toBe(0);
+    });
+  });
+
+  // ── 正常路径 ─────────────────────────────────────────
+  describe('正常路径', () => {
+    it('TP039 单任务统计正确', () => {
+      const { service } = createFixture();
+      const task = service.createTask(cmd({ userId: USER, title: '单任务', priority: 'MEDIUM' }));
+      service.recordStudyTime(task.taskId, 45);
+
+      const stats = service.getStudyStatistics(USER);
+
+      expect(stats.totalMinutes).toBe(45);
+      expect(stats.completedTaskMinutes).toBe(0); // 未完成
+      expect(stats.averageMinutesPerTask).toBe(45);
+    });
+
+    it('TP040 多任务累计统计正确', () => {
+      const { service } = createFixture();
+      const t1 = service.createTask(cmd({ userId: USER, title: '任务1', priority: 'LOW' }));
+      const t2 = service.createTask(cmd({ userId: USER, title: '任务2', priority: 'MEDIUM' }));
+      const t3 = service.createTask(cmd({ userId: USER, title: '任务3', priority: 'LOW' }));
+      service.recordStudyTime(t1.taskId, 30);
+      service.recordStudyTime(t2.taskId, 60);
+      service.recordStudyTime(t3.taskId, 90);
+
+      const stats = service.getStudyStatistics(USER);
+
+      expect(stats.totalMinutes).toBe(180);          // 30 + 60 + 90
+      expect(stats.averageMinutesPerTask).toBe(60);   // 180 / 3
+    });
+
+    it('TP041 已完成/未完成任务混合统计', () => {
+      const { service } = createFixture();
+      const completed = service.createTask(cmd({ userId: USER, title: '已完成', priority: 'MEDIUM' }));
+      const pending = service.createTask(cmd({ userId: USER, title: '未完成', priority: 'LOW' }));
+
+      // 两个任务都记录学习时长
+      service.recordStudyTime(completed.taskId, 60);
+      service.recordStudyTime(pending.taskId, 30);
+      // 完成其中一个
+      service.updateTaskStatus(completed.taskId, 'IN_PROGRESS');
+      service.completeTask(completed.taskId);
+
+      const stats = service.getStudyStatistics(USER);
+
+      expect(stats.totalMinutes).toBe(90);                // 60 + 30
+      expect(stats.completedTaskMinutes).toBe(60);         // 只算已完成的
+      expect(stats.averageMinutesPerTask).toBe(45);        // 90 / 2
+    });
+
+    it('TP043 不同用户学习时长互不干扰', () => {
+      const { service } = createFixture();
+      const myTask = service.createTask(cmd({ userId: USER, title: '我的', priority: 'MEDIUM' }));
+      const otherTask = service.createTask(cmd({ userId: OTHER, title: '别人的', priority: 'MEDIUM' }));
+      service.recordStudyTime(myTask.taskId, 100);
+      service.recordStudyTime(otherTask.taskId, 999);
+
+      const stats = service.getStudyStatistics(USER);
+
+      expect(stats.totalMinutes).toBe(100);
+      expect(stats.averageMinutesPerTask).toBe(100);
     });
   });
 });

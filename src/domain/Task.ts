@@ -4,7 +4,7 @@ import { ReminderPolicy } from './ReminderPolicy';
 
 /**
  * 任务 —— 核心实体
- * 代表一条具体的学习任务，包含状态、优先级、提醒等属性。
+ * 代表一条具体的学习任务，包含状态、优先级、提醒、学习时长等属性。
  */
 export class Task {
   constructor(
@@ -19,6 +19,7 @@ export class Task {
     public estimatedMinutes?: number,
     public reminderPolicy?: ReminderPolicy,
     public completedAt?: Date,
+    public actualMinutes: number = 0,
   ) {
     // INV-01: 截止日期不能早于创建时间
     if (this.deadline && this.deadline < this.createdAt) {
@@ -60,5 +61,14 @@ export class Task {
       throw new Error('提醒时间不能晚于截止日期');
     }
     this.reminderPolicy = new ReminderPolicy(reminderTime);
+  }
+
+  /** 累计学习时长 */
+  addStudyTime(minutes: number): void {
+    // INV-06: 学习时长必须为正数
+    if (minutes <= 0) {
+      throw new Error('学习时长必须为正数');
+    }
+    this.actualMinutes += minutes;
   }
 }

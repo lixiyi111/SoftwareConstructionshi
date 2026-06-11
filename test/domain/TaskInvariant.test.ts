@@ -231,3 +231,40 @@ describe('INV-05 提醒时间不能晚于任务截止日期', () => {
     expect(() => task.setReminderPolicy(new Date('2099-12-31'))).not.toThrow();
   });
 });
+
+// ==============================================================
+// INV-06 学习时长必须为正数
+// ==============================================================
+describe('INV-06 学习时长必须为正数', () => {
+  it('TP052 创建任务后 actualMinutes 默认为 0', () => {
+    const task = createBaseTask();
+    expect(task.actualMinutes).toBe(0);
+  });
+
+  it('TP053 传入正数时应正确累计学习时长', () => {
+    const task = createBaseTask();
+    task.addStudyTime(30);
+    expect(task.actualMinutes).toBe(30);
+  });
+
+  it('TP054 多次调用 addStudyTime 应累加', () => {
+    const task = createBaseTask();
+    task.addStudyTime(30);
+    task.addStudyTime(20);
+    task.addStudyTime(15);
+    expect(task.actualMinutes).toBe(65);
+  });
+
+  it('TP055 传入 0 时应拒绝（学习时长必须为正数）', () => {
+    const task = createBaseTask();
+    expect(() => task.addStudyTime(0)).toThrow('学习时长必须为正数');
+    // actualMinutes 应保持不变
+    expect(task.actualMinutes).toBe(0);
+  });
+
+  it('TP056 传入负数时应拒绝（学习时长必须为正数）', () => {
+    const task = createBaseTask();
+    expect(() => task.addStudyTime(-10)).toThrow('学习时长必须为正数');
+    expect(task.actualMinutes).toBe(0);
+  });
+});

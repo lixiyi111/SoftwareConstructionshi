@@ -86,6 +86,45 @@ export class DefaultTaskService implements TaskService {
     };
   }
 
+  // ========== &记录学习时长 ==========
+
+  recordStudyTime(taskId: string, minutes: number): Task {
+    const task = this.repository.findById(taskId);
+    if (!task) {
+      throw new Error(`任务不存在: ${taskId}`);
+    }
+    if (minutes <= 0) {
+      throw new Error('学习时长必须为正数');
+    }
+    task.addStudyTime(minutes);
+    this.repository.save(task);
+    return task;
+  }
+
+  // ========== &学习时长统计 ==========
+
+  getStudyStatistics(userId: string): {
+    totalMinutes: number;
+    completedTaskMinutes: number;
+    averageMinutesPerTask: number;
+  } {
+    const userTasks = this.repository
+      .findAll()
+      .filter((t) => t.userId === userId);
+
+    if (userTasks.length === 0) {
+      return { totalMinutes: 0, completedTaskMinutes: 0, averageMinutesPerTask: 0 };
+    }
+
+    const totalMinutes = userTasks.reduce((sum, t) => sum + (t.actualMinutes ?? 0), 0);
+    const completedTaskMinutes = userTasks
+      .filter((t) => t.status === TaskStatus.Completed)
+      .reduce((sum, t) => sum + (t.actualMinutes ?? 0), 0);
+    const averageMinutesPerTask = totalMinutes / userTasks.length;
+
+    return { totalMinutes, completedTaskMinutes, averageMinutesPerTask };
+  }
+
   // ========== 私有辅助方法 ==========
 
   private parsePriority(value: string): Priority {
