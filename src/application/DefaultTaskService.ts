@@ -22,16 +22,12 @@ export class DefaultTaskService implements TaskService {
   // ========== &创建任务 ==========
 
   createTask(input: CreateTaskCommand): Task {
-    if (!input.title || input.title.trim().length === 0) {
-      throw new Error('任务标题不能为空');
-    }
-
     const priority = this.parsePriority(input.priority);
 
     const task = new Task(
       randomUUID(),
       input.userId,
-      input.title.trim(),
+      (input.title ?? '').trim(),
       input.description ?? '',
       priority,
       TaskStatus.Pending,
@@ -56,9 +52,6 @@ export class DefaultTaskService implements TaskService {
     }
 
     const newStatus = this.parseStatus(status);
-
-    // 校验状态转换路径（INV-04）
-    this.validateStatusTransition(task.status, newStatus);
 
     task.updateStatus(newStatus);
     this.repository.save(task);
@@ -115,17 +108,5 @@ export class DefaultTaskService implements TaskService {
     const s = map[value.toUpperCase()];
     if (!s) throw new Error(`无效状态: ${value}（可选: PENDING / IN_PROGRESS / COMPLETED）`);
     return s;
-  }
-
-  private validateStatusTransition(current: TaskStatus, next: TaskStatus): void {
-    const allowed: Record<string, string[]> = {
-      [TaskStatus.Pending]: [TaskStatus.InProgress],
-      [TaskStatus.InProgress]: [TaskStatus.Completed],
-      [TaskStatus.Completed]: [TaskStatus.Pending],
-    };
-    const ok = allowed[current]?.includes(next);
-    if (!ok) {
-      throw new Error(`不允许的状态转换: ${current} → ${next}`);
-    }
   }
 }

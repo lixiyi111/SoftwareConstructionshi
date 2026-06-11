@@ -19,20 +19,46 @@ export class Task {
     public estimatedMinutes?: number,
     public reminderPolicy?: ReminderPolicy,
     public completedAt?: Date,
-  ) {}
+  ) {
+    // INV-01: 截止日期不能早于创建时间
+    if (this.deadline && this.deadline < this.createdAt) {
+      throw new Error('截止日期不能早于创建时间');
+    }
+    // INV-02: 高优先级任务必须设置截止日期
+    if (this.priority === Priority.High && !this.deadline) {
+      throw new Error('高优先级任务必须设置截止日期');
+    }
+    // INV-03: 标题不能为空
+    if (!this.title || this.title.trim().length === 0) {
+      throw new Error('任务标题不能为空');
+    }
+  }
 
   /** 更新任务状态 */
   updateStatus(newStatus: TaskStatus): void {
-    // TODO: 校验状态转换合法性（参考 INV-04）
+    // INV-04: 状态转换必须遵循允许路径
+    const allowed: Record<TaskStatus, TaskStatus[]> = {
+      [TaskStatus.Pending]: [TaskStatus.InProgress],
+      [TaskStatus.InProgress]: [TaskStatus.Completed],
+      [TaskStatus.Completed]: [TaskStatus.Pending],
+    };
+    if (!allowed[this.status]?.includes(newStatus)) {
+      throw new Error(`不允许的状态转换: ${this.status} → ${newStatus}`);
+    }
     this.status = newStatus;
     if (newStatus === TaskStatus.Completed) {
       this.completedAt = new Date();
+    } else {
+      this.completedAt = undefined;
     }
   }
 
   /** 设置提醒策略 */
   setReminderPolicy(reminderTime: Date): void {
-    // TODO: 校验提醒时间不晚于截止日期（参考 INV-05）
+    // INV-05: 提醒时间不能晚于截止日期
+    if (this.deadline && reminderTime > this.deadline) {
+      throw new Error('提醒时间不能晚于截止日期');
+    }
     this.reminderPolicy = new ReminderPolicy(reminderTime);
   }
 }

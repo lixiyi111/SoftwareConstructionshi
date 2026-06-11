@@ -29,7 +29,7 @@ describe('Task 实体', () => {
       'user-001',
       '完成实验报告',
       '',
-      Priority.High,
+      Priority.Medium,
       TaskStatus.InProgress,
       new Date(),
     );
@@ -56,7 +56,7 @@ describe('DefaultTaskService — 5 个核心功能', () => {
   // ── &创建任务 ────────────────────────────────────────
   describe('&创建任务', () => {
     it('应创建任务并返回 Pendig 状态', () => {
-      const cmd: CreateTaskCommand = { userId: USER, title: '测试任务', priority: 'HIGH' };
+      const cmd: CreateTaskCommand = { userId: USER, title: '测试任务', priority: 'MEDIUM' };
       const task = service.createTask(cmd);
       expect(task.title).toBe('测试任务');
       expect(task.status).toBe(TaskStatus.Pending);
@@ -93,7 +93,7 @@ describe('DefaultTaskService — 5 个核心功能', () => {
     it('应按 高→中→低 顺序返回任务', () => {
       const u = 'sort-user';
       service.createTask({ userId: u, title: '低优先级', priority: 'LOW' });
-      service.createTask({ userId: u, title: '高优先级', priority: 'HIGH' });
+      service.createTask({ userId: u, title: '高优先级', priority: 'HIGH', dueDate: new Date('2026-06-10') });
       service.createTask({ userId: u, title: '中优先级', priority: 'MEDIUM' });
       const sorted = service.listTasksByPriority(u);
       expect(sorted[0].priority).toBe(Priority.High);
@@ -106,7 +106,7 @@ describe('DefaultTaskService — 5 个核心功能', () => {
   describe('&查询到期任务', () => {
     it('应返回截止日期在指定日期之前的任务', () => {
       const u = 'due-user';
-      service.createTask({ userId: u, title: '已到期', priority: 'HIGH', dueDate: new Date('2026-06-01') });
+      service.createTask({ userId: u, title: '已到期', priority: 'HIGH', dueDate: new Date('2026-06-08') });
       service.createTask({ userId: u, title: '未到期', priority: 'LOW', dueDate: new Date('2026-07-01') });
       const due = service.listDueTasks(new Date('2026-06-10'));
       expect(due.some((t) => t.title === '已到期')).toBe(true);
@@ -118,7 +118,7 @@ describe('DefaultTaskService — 5 个核心功能', () => {
   describe('&按用户统计任务完成情况', () => {
     it('应正确统计总任务数和已完成数', () => {
       const u = 'stats-user';
-      const t1 = service.createTask({ userId: u, title: '作业 A', priority: 'HIGH' });
+      const t1 = service.createTask({ userId: u, title: '作业 A', priority: 'MEDIUM' });
       service.createTask({ userId: u, title: '作业 B', priority: 'MEDIUM' });
       const t3 = service.createTask({ userId: u, title: '作业 C', priority: 'LOW' });
       service.updateTaskStatus(t1.taskId, 'IN_PROGRESS');
